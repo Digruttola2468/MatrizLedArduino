@@ -170,7 +170,6 @@ void setup(){
 
 void loop(){
   DateTime now = rtc.now();
-  
   stringMensaje += now.day();
   stringMensaje += "/";
   stringMensaje += now.month();

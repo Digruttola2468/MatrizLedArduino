@@ -1,6 +1,11 @@
 #include<Wire.h>
 #include<RTClib.h>
 
+/* Conection RTC3231
+SDA --> 20 SDA 
+SCL --> 21 SCL 
+*/
+
 RTC_DS3231 rtc;
 
 void setup() {
@@ -16,24 +21,25 @@ void setup() {
 void loop() {
   DateTime fecha = rtc.now();
 
-   Serial.print(fecha.day());
-   Serial.print("/");
+  Serial.print(fecha.day());
+  Serial.print("/");
    
-   Serial.print(fecha.month());
-   Serial.print("/");
+  Serial.print(fecha.month());
+  Serial.print("/");
    
-   Serial.print(fecha.year());
-   Serial.print("   ");
+  Serial.print(fecha.year());
+  Serial.print("   ");
 
-   
-   Serial.print(fecha.hour());
-   Serial.print(":");
-   
-   Serial.print(fecha.minute());
-   Serial.print(":");
 
-   Serial.print(fecha.second());
-   Serial.println();
+  
+  Serial.print(fecha.hour());
+  Serial.print(":");
+   
+  Serial.print(fecha.minute());
+  Serial.print(":");
 
-   delay(1000);
+  Serial.print(fecha.second());
+  Serial.println();
+
+  delay(1000);
 }

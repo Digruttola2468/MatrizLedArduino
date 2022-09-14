@@ -1,26 +1,37 @@
+// 2,3 PIN Transistores
+// 5,6,7,8,9,10,11 PIN Display 7seg
+// a,b,c,d,e,f,g
 
-const int pins[7] = {33,34,35,36,37,38,39};
+const int pins[7] = {5,6,7,8,9,10,11};
 //                   a , b, c, d, e, f, g 
 
 
+//0b0gcbafed
 const byte numbersDisplayAnode[10] = {
-  0b00000000, //0 
-  0b00000000, //1
-  0b00000000, //2
-  0b00000000, //3
-  0b00000000, //4
-  0b00000000, //5
-  0b00000000, //6
-  0b00000000, //7
-  0b00000000, //8
-  0b00000000 //9
+  0b00111111, //0 
+  0b00110000, //1
+  0b01011011, //2
+  0b01111001, //3
+  0b01110100, //4
+  0b01101101, //5
+  0b01101111, //6
+  0b00111000, //7
+  0b01111111, //8
+  0b01111100  //9
 };
 
 void setup(){
+  
   for(int i=0; i<7 ; i++){
     pinMode(pins[i], OUTPUT);
   }
-
+  
+  
+  //Transistores
+  pinMode(2,OUTPUT);
+  pinMode(3,OUTPUT);
+  
+  
   lightSegments(0);
 }
 
