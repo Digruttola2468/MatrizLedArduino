@@ -1,35 +1,16 @@
-/* Matriz de Desplazamiento LED 8x8 
- 
-Usando Arduino UNO y el Controlador MAX7219 
-Debe instalar la libreria MaxMatrix para que funcione el programa
-Libreria: MaxMatrix
-Autor: Marcelo Moraes (Brazil)
-Por:    http://elprofegarcia.com/
-Tienda: http://dinastiatecnologica.com/
-
-Conexiones del Arduino al Modulo MAX7219:
-ARDUINIO    MAX7219
- 10          CLK
- 9           CS
- 8           DIN
- GND         GND
- 5V          VCC
- 
-Conexion  de la cascada de MAX7219(1)  al MAX7219(2)
-MAX7219(1)   MAX7219(2)  
-  CLK          CLK
-  CS           CS
-  DOUT         DIN
-  GND          GND
-  VCC          VCC
-La cascada se hace conectano de los pines Superiores a los inferiores del modulo MAX7219
-y los modulos se instalan de derecha a izquierda        
-*/
-
+//----------------Librerias--------------------
+//MaxMatriz
 #include <MaxMatrix.h>
+
+//Sensor Temperatura y Humedad
+#include <DHT.h>
+#include <DHT_U.h>
+
+//RTC3231
 #include<Wire.h>
 #include<RTClib.h>
 
+//Caracteres para displayar la matriz de led
 PROGMEM unsigned char const CH[] = {
 3, 8, B00000000, B00000000, B00000000, B00000000, B00000000, // space
 1, 8, B01011111, B00000000, B00000000, B00000000, B00000000, // !
@@ -128,71 +109,182 @@ PROGMEM unsigned char const CH[] = {
 4, 8, B00001000, B00000100, B00001000, B00000100, B00000000, // ~
 };
 
-/*Conexion del RTC3231
-  VCC   VCC
-  GND   GND
-  SDA   20
-  SCL   21
-*/
-
-/*
-Conexiones del Arduino al Modulo MAX7219:
+/*-----------------------Conexion de modulos-------------------------- 
+Conexiones del Arduino al Modulo MAX7219 Matriz de Leds:
 ARDUINIO    MAX7219
- 10          CLK
- 9           CS
- 8           DIN
+ 35         CLK
+ 34          CS
+ 33          DIN
  GND         GND
  5V          VCC
+ 
+Conexion  de la cascada de MAX7219(1) al MAX7219(2)
+MAX7219(1)   MAX7219(2)  
+  CLK          CLK
+  CS           CS
+  DOUT         DIN
+  GND          GND
+  VCC          VCC
+
+Conexion con DHT11
+   Vista de frente Izquierda a derecha
+   1 -> VCC
+   2 -> DATA -> PIN Digital
+   3 -> NC (No se conecta)
+   4 -> GND
+
+Conection RTC3231
+    SDA --> 20 SDA 
+    SCL --> 21 SCL 
+
+Conexion Display 7 segmentos
+  Display Mil     -> PIN Digital
+  Display Centena -> PIN Digital
+  Display Decena  -> PIN Digital
+  Display Unidad  -> PIN Digital
+
+DIS_MIL 5
+DIS_CEN 3
+DIS_DEC 2
+DIS_UNI 4
+
+Conexion Pines 7 segmentos -> PINES DIGITALES
+  6,7,8,9,10,11,12
+  a,b,c,d, e, f, g
 */
 
-//PIN 
-#define DATA  51   // DIN pin del modulo MAX7219
-#define LOAD  52   // CS pin del modulo MAX7219
+
+//-----------------------------PIN------------------------------------
+
+//Pines Display 7 segmentos
+const int pins[7] = {6,7,8,9,10,11,12};
+//                   a,b,c,d,e ,f ,g 
+
+//Pines Matriz de Leds
+#define DATA  51    // DIN pin del modulo MAX7219
+#define LOAD  52    // CS pin del modulo MAX7219
 #define CLOCK 53   // CLK pin del modulo MAX7219
 
-//Variable MaxMatrix
-int maxInUse = 4;    // Cambie este valor dependiendo del numero de matrices que use
-byte buffer[2];
-String stringMensaje;
+//Pin DHT11 Sensor Temperatura y Humedad
+#define DHTPIN 41  // PIN DHT11
 
-//Variable RTC3231
-RTC_DS3231 rtc; 
+
+//Mostrar numeros en el Display 7seg
+const byte numbersDisplayAnode[10] = {
+//0b0gfedcba
+  0b00111111, //0 
+  0b00000110, //1
+  0b01011011, //2
+  0b01001111, //3
+  0b01100110, //4
+  0b01101101, //5
+  0b01111101, //6
+  0b00000111, //7
+  0b11111111, //8
+  0b11101111  //9
+};
+
+//-----------------------------Modulos------------------------------------
+//Modulo 3231
+RTC_DS3231 rtc;
+
+//Modulo DHT11 sensor Temperatura y Humedad
+DHT dht(DHTPIN, DHT11);                   // PINMODEL,DHTMODEL 
+
+//Modulo Matriz de Leds
 MaxMatrix m(DATA, LOAD, CLOCK, maxInUse); // Define el modulo
+
+
+
+//-----------------------------Variables------------------------------------
+
+//Variables para el reloj
+int horaAlta = 0;
+int horaBaja = 0;
+int minutoAlto = 0;
+int minutoBajo = 0;
+
+//Variable MaxMatrix
+int maxInUse = 2;    // Cambie este valor dependiendo del numero de matrices que use
+byte buffer[2];
+char mensaje1[] =  ""; // Escriba el mensaje a desplegar 
+
+//Variable DHT
+float temp = 25;
+float humedad = 5;
+
 
 void setup(){
   Serial.begin(9600);       // Inicializa el puerto serial
  
-  m.init();                 // Inicializa el modulo
+  m.init();                 // Inicializa el modulo Matriz de led
   m.setIntensity(5);        // Intencidad de los puntos de la matriz, entre 1-5
+  
+  pinMode(DHTPIN,OUTPUT);   // Definimos como salida el pin DHT
 
-  rtc.begin();
+  //Verificamos si se conecto con el Modulo RTC3231
+  if( !rtc.begin() ) {
+    Serial.println("Modulo RTC no encontrado");
+    while(1); //Bucle infinito
+  }
+  
+  rtc.adjust(DateTime(__DATE__,__TIME__));
+
+  //Definimos como salida a los pines Display 7seg
+  for(int i=0; i<7 ; i++){
+    pinMode(pins[i], OUTPUT);
+  }
+  
+  //Transistores para multiplexado, definimos como salida
+  pinMode(DIS_MIL,OUTPUT);
+  pinMode(DIS_CEN,OUTPUT);
+  pinMode(DIS_DEC,OUTPUT);
+  pinMode(DIS_UNI,OUTPUT);
 }
 
 void loop(){
-  DateTime now = rtc.now();
-  stringMensaje += now.day();
-  stringMensaje += "/";
-  stringMensaje += now.month();
-  stringMensaje += "/";
-  stringMensaje += now.year();
-  stringMensaje += "    ";
-  stringMensaje += now.hour();
-  stringMensaje += ":";
-  stringMensaje += now.minute();
-  stringMensaje += ":";
-  stringMensaje += now.second();
+  byte c;
+  
+  // Lee el mensaje que llega por el puerto serial
+  while (Serial.available() > 0){
+    byte c = Serial.read();         //Obtiene de cada byte
+    Serial.println(c,DEC);
+    printCharWithShift(c, 100);
+  }
 
+  //Obtenemos los valores del sensor de temperatura 
+  temp    = dht.readTemperature(); //Lee Temperatura DHT11
+  humedad = dht.readHumidity();    //Lee Humedad DHT11
+
+  //Creamos una cadena de caracteres para la frase de temperatura y humedad
+  String stringMensaje;
+  stringMensaje += "Temperatura: ";
+  stringMensaje += temp;
+  stringMensaje += "  Humedad: ";
+  stringMensaje += humedad;
+
+  //Obtenemos la cantidad total de los caracteres del string
   int mensajeLength = stringMensaje.length() + 1;
 
-  Serial.println(stringMensaje);
-  
+  //Pasamos de String a char[]
   char charMensaje[mensajeLength];
-  stringMensaje.toCharArray(charMensaje,100);
+  stringMensaje.toCharArray(charMensaje,50);
   
-  // Despliega los mensajes almacenados en las variables 
-  printStringWithShift(charMensaje, 100);       // El ultimo termino se usa para la velocidad del mensaje 
+  //Mostrar en la Matriz de Led
+  printStringWithShift(charMensaje, 100);       // El ultimo termino se usa para la velocidad del mensaje  
+
+  //Obtenemos la fecha y hora
+  DateTime fecha = rtc.now();
+
+  //Obtenemos los valores del modulo RTC3231
+  int horas  = fecha.hour();                  
+  int minutos = fecha.minute();               
+
+  //Mostrar hora minutos en los display 7 segmentos
+  mostrarHoraDisplay7seg(horas,minutos);
 }
 
+//---------------------Funciones-----------------------------------------------------------------
 void printCharWithShift(char c, int shift_speed){    // Imprime caracteres
   //32 --> ALT+32 --> space
   if (c < 32) 
@@ -230,4 +322,58 @@ void printString(char* s)                            // Imprime cadena
     col += buffer[0] + 1;
     s++;
   }
+}
+
+void mostrarHoraDisplay7seg(int hora,int minutos){
+  
+  horaAlta = hora / 10;                      //20 / 10 = 2
+  horaBaja = hora - (horaAlta * 10);         //20 - ( 2 * 10 ) = 0
+  
+  minutoAlto = minutos / 10;                  //47 / 10 = 4.7
+  minutoBajo = minutos - (minutoAlto * 10) ; //47 - (4 * 10) = 7
+
+  Serial.print(horaAlta);
+  Serial.print(horaBaja);
+  
+  Serial.print(":");
+
+  Serial.print(minutoAlto);
+  Serial.println(minutoBajo);
+  
+  int tiempo = 2;
+  
+  //Mostrar Hora
+  digitalWrite(DIS_UNI, HIGH);
+  delay(tiempo);
+  lightSegments(minutoBajo);
+  digitalWrite(DIS_UNI, LOW);
+  delay(tiempo);
+
+  digitalWrite(DIS_DEC, HIGH);
+  delay(tiempo);
+  lightSegments(minutoAlto);
+  digitalWrite(DIS_DEC, LOW);
+  delay(tiempo);
+
+  digitalWrite(DIS_CEN, HIGH);
+  delay(tiempo);
+  lightSegments(horaBaja);
+  digitalWrite(DIS_CEN, LOW);
+  delay(tiempo);
+
+  digitalWrite(DIS_MIL, HIGH);
+  delay(tiempo);
+  lightSegments(horaAlta);
+  digitalWrite(DIS_MIL,LOW);
+  delay(tiempo);
+}
+
+void lightSegments(int number) {
+  byte numberBit = numbersDisplayAnode[number];
+
+  //Recorremos dentro de los 7 pines
+  for(int i=0 ; i<7 ; i++){
+    int bit = bitRead(numberBit, i); //Obtenemos ese bite a int
+    digitalWrite(pins[i], bit);      //Enciamos
+  }  
 }

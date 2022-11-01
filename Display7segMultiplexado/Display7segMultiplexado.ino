@@ -5,10 +5,10 @@
 const int pins[7] = {6,7,8,9,10,11,12};
 //                   a , b, c, d, e, f, g 
 
-#define DIS_MIL 2
-#define DIS_CEN 3
-#define DIS_DEC 4
-#define DIS_UNI 5
+#define DIS_MIL 4   //PIN 2
+#define DIS_CEN 3   //PIN 3
+#define DIS_DEC 2   //PIN 4
+#define DIS_UNI 5   //PIN 5
 
 //0b0gfedcba
 const byte numbersDisplayAnode[10] = {
@@ -65,7 +65,7 @@ void loop(){
     mil = 0;
   }
 
-  int tiempo = 50;
+  int tiempo = 100;
   
   //Mostrar Hora
   digitalWrite(DIS_UNI, HIGH);
